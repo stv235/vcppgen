@@ -20,26 +20,63 @@ struct Project
 	std::string name;
 	std::string toolset;
 
+	bool hasBinaries = false;
+
 	std::vector<Configuration> configurations;
 };
 
-void writeBinaryTarget(std::ofstream& os, const Configuration& configuration)
+void writeCondition(std::ostream& os, const Configuration& configuration)
+{
+	os << "Condition=\"'$(Configuration)|$(Platform)'=='" << configuration.name << '|' << configuration.architecture << "'\"";
+}
+
+void writeCopyTarget(std::ofstream& os, const Project& project)
+{
+	if (project.hasBinaries)
+	{
+		os << "\t<Target Name=\"CopyBinaryFiles\">\r\n"
+			<< "\t\t<ItemGroup>\r\n";	
+
+		for (const auto configuration : project.configurations)
+		{
+			for (const auto binary : configuration.binaries)
+			{
+				os << "<NativeTargetPath ";
+				writeCondition(os, configuration);
+				os << " Include=\"$(ProjectDir)" << binary << "\" />\r\n";
+			}			
+		}
+
+		os << "</ItemGroup>\r\n"
+			<< "<Copy SourceFiles=\"@(NativeTargetPath)\" DestinationFolder=\"$(OutDir)\" />\r\n"
+			<< "</Target>\r\n";
+	}
+}
+
+void writeTargets(std::ofstream& os, const Configuration& configuration)
 {
 	for (const auto binary : configuration.binaries)
 	{
 		os << "\t\t\t<NativeTargetPath Condition=\"'$(Configuration)|$(Platform)'=='"
 			<< configuration.name
 			<< '|' << configuration.architecture
-			<< "'\" Include=\"$(ProjectDir)"
+			<< "' and '$(DesignTimeBuild)'=='true'\" Include=\"$(ProjectDir)"
 			<< binary
-			<< "\"/>\r\n";
+			<< "\" />\r\n";
+	}
+
+	for (const auto library : configuration.libraries)
+	{
+		os << "\t\t\t<NativeTargetPath Condition=\"'$(Configuration)|$(Platform)'=='"
+			<< configuration.name
+			<< '|' << configuration.architecture
+			<< "' and '$(DesignTimeBuild)'=='true'\" Include=\"$(ProjectDir)"
+			<< library
+			<< "\" />\r\n";
 	}
 }
 
-void writeCondition(std::ostream& os, const Configuration& configuration)
-{
-	os << "Condition=\"'$(Configuration)|$(Platform)'=='" << configuration.name << '|' << configuration.architecture << "'\"";
-}
+
 
 void writeLibraries(std::ostream& os, const Configuration& configuration)
 {
@@ -58,7 +95,18 @@ void writeLibraries(std::ostream& os, const Configuration& configuration)
 	}
 
 	os << "\">\r\n"
-		"<ProjectType>StaticLibrary</ProjectType>\r\n"
+		"<ProjectType>";
+
+	if (configuration.binaries.empty())
+	{
+		os << "StaticLibrary";
+	}
+	else
+	{
+		os << "DynamicLibrary";
+	}
+
+	os << "</ProjectType>\r\n"
 		"<FileType>lib</FileType>\r\n"
 		"<ResolveableAssembly>false</ResolveableAssembly>\r\n"
 		"</Libs>\r\n";	
@@ -66,7 +114,14 @@ void writeLibraries(std::ostream& os, const Configuration& configuration)
 
 void writeLibraryTarget(std::ostream& os, const Project& project)
 {
-	os << "<Target Name=\"GetResolvedLinkLibs\" Returns=\"@(Libs)\">\r\n"
+	os << "<Target Name=\"GetResolvedLinkLibs\"";
+
+	if (project.hasBinaries)
+	{
+		os << " DependsOnTargets=\"CopyBinaryFiles\"";
+	}
+
+	os << " Returns = \"@(Libs)\">\r\n"
 		"<ItemGroup>\r\n";
 
 	for (const auto configuration : project.configurations)
@@ -177,6 +232,7 @@ int main(int argc, char* argv[])
 						throw std::runtime_error("DLL file not found: '" + std::string{ binary } +"'");
 					}
 
+					project.hasBinaries = true;
 					configuration.binaries.emplace_back(binary);
 				}
 				else if (sw == "-lib")
@@ -237,14 +293,14 @@ int main(int argc, char* argv[])
 
 			for (const auto configuration : project.configurations)
 			{
-				writeBinaryTarget(os, configuration);
+				writeTargets(os, configuration);
 			}
 
 			os << "\t\t</ItemGroup>\r\n"
 				"\t</Target>\r\n";
 
 			writeLibraryTarget(os, project);
-
+			writeCopyTarget(os, project);
 
 			os << "</Project>\r\n";
 		}
