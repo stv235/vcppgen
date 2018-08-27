@@ -21,6 +21,7 @@ struct Project
 	std::string toolset;
 
 	bool hasBinaries = false;
+	bool hasLibraries = false;
 
 	std::vector<Configuration> configurations;
 };
@@ -115,23 +116,22 @@ void writeLibraries(std::ostream& os, const Configuration& configuration)
 
 void writeLibraryTarget(std::ostream& os, const Project& project)
 {
-	os << "<Target Name=\"GetResolvedLinkLibs\"";
-
-//	if (project.hasBinaries)
-//	{
-//		os << " DependsOnTargets=\"CopyBinaryFiles\"";
-//	}
-
-	os << " Returns = \"@(Libs)\">\r\n"
-		"<ItemGroup>\r\n";
-
-	for (const auto configuration : project.configurations)
+	if (project.hasLibraries)
 	{
-		writeLibraries(os, configuration);
-	}
+		os << "<Target Name=\"GetResolvedLinkLibs\"";
 
-	os << "</ItemGroup>\r\n"
-		"</Target>\r\n";
+		os << " Returns = \"@(Libs)\">\r\n"
+			"<ItemGroup>\r\n";
+
+		for (const auto configuration : project.configurations)
+		{
+			writeLibraries(os, configuration);
+		}
+
+		os << "</ItemGroup>\r\n"
+			"</Target>\r\n";
+	}
+	
 }
 
 void writeConfigurations(std::ostream& os, const Project& project)
@@ -246,6 +246,7 @@ int main(int argc, char* argv[])
 						throw std::runtime_error("lib file not found: '" + std::string{ library } +"'");
 					}
 
+					project.hasLibraries = true;
 					configuration.libraries.emplace_back(library);
 				}
 				else
