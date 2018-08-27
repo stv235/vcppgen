@@ -49,7 +49,8 @@ void writeCopyTarget(std::ofstream& os, const Project& project)
 
 		os << "</ItemGroup>\r\n"
 			<< "<Copy SourceFiles=\"@(NativeTargetPath)\" DestinationFolder=\"$(OutDir)\" />\r\n"
-			<< "</Target>\r\n";
+			<< "</Target>\r\n"
+			<< "<Target Name=\"Build\" DependsOnTargets=\"CopyBinaryFiles\"/>";
 	}
 }
 
@@ -116,10 +117,10 @@ void writeLibraryTarget(std::ostream& os, const Project& project)
 {
 	os << "<Target Name=\"GetResolvedLinkLibs\"";
 
-	if (project.hasBinaries)
-	{
-		os << " DependsOnTargets=\"CopyBinaryFiles\"";
-	}
+//	if (project.hasBinaries)
+//	{
+//		os << " DependsOnTargets=\"CopyBinaryFiles\"";
+//	}
 
 	os << " Returns = \"@(Libs)\">\r\n"
 		"<ItemGroup>\r\n";
