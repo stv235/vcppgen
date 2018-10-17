@@ -57,6 +57,7 @@ void writeCopyTarget(std::ofstream& os, const Project& project)
 
 void writeTargets(std::ofstream& os, const Configuration& configuration)
 {
+#if 0
 	for (const auto binary : configuration.binaries)
 	{
 		os << "\t\t\t<NativeTargetPath Condition=\"'$(Configuration)|$(Platform)'=='"
@@ -66,6 +67,7 @@ void writeTargets(std::ofstream& os, const Configuration& configuration)
 			<< binary
 			<< "\" />\r\n";
 	}
+#endif
 
 	for (const auto library : configuration.libraries)
 	{
